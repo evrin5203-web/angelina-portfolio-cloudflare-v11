@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import "@fontsource/cormorant-garamond/cyrillic-400.css";
+import "@fontsource/cormorant-garamond/latin-400.css";
+import "@fontsource/roboto-condensed/cyrillic-400.css";
+import "@fontsource/roboto-condensed/cyrillic-600.css";
+import "@fontsource/roboto-condensed/latin-400.css";
+import "@fontsource/roboto-condensed/latin-600.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

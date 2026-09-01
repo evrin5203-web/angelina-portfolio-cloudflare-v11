@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import projectData from "./data/projects.json";
 import categoryData from "./data/categories.json";
 
@@ -20,6 +20,7 @@ type Project = {
   description: Localized;
   categories: string[];
   sourceUrl: string | null;
+  liveUrl?: string | null;
   cover: string;
   images: ProjectImage[];
   selected: boolean;
@@ -133,6 +134,42 @@ function categoryLabel(id: string, language: Language) {
 
 function thumbnailFor(src: string) {
   return src.replace(/^\/portfolio\//, "/portfolio-thumbs/").replace(/\.[^.]+$/, ".webp");
+}
+
+type GalleryItem = { image: ProjectImage; index: number };
+type GalleryRow = { items: GalleryItem[]; panoramic: boolean };
+
+function buildGalleryRows(images: ProjectImage[]) {
+  const rows: GalleryRow[] = [];
+  let current: GalleryItem[] = [];
+  let ratioTotal = 0;
+  const flush = () => {
+    if (!current.length) return;
+    rows.push({ items: current, panoramic: false });
+    current = [];
+    ratioTotal = 0;
+  };
+
+  images.forEach((image, index) => {
+    const ratio = image.width / image.height;
+    if (ratio >= 1.78) {
+      flush();
+      rows.push({ items: [{ image, index }], panoramic: true });
+      return;
+    }
+    current.push({ image, index });
+    ratioTotal += ratio;
+    if (ratioTotal >= 2.55 || current.length === 4) flush();
+  });
+  flush();
+
+  const last = rows.at(-1);
+  const previous = rows.at(-2);
+  if (last && previous && !last.panoramic && !previous.panoramic && last.items.length === 1 && previous.items.length < 4) {
+    previous.items.push(last.items[0]);
+    rows.pop();
+  }
+  return rows;
 }
 
 function ProjectMedia({ image, alt, eager = false }: { image: ProjectImage; alt: string; eager?: boolean }) {
@@ -284,6 +321,7 @@ export default function Home() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (document.querySelector(".project-lightbox")) return;
       if (event.key === "Escape") { setActive(null); setPanel(null); return; }
       if (active || panel) return;
       const amount = event.shiftKey ? 250 : 86;
@@ -539,16 +577,56 @@ function SelectedShowcase({ projects, language, onOpen }: { projects: Project[];
 }
 
 function ProjectView({ project, language, onClose }: { project: Project; language: Language; onClose: () => void }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const galleryRows = useMemo(() => buildGalleryRows(project.images), [project.images]);
+  const stepLightbox = useCallback((direction: number) => {
+    setLightboxIndex((current) => current === null ? null : (current + direction + project.images.length) % project.images.length);
+  }, [project.images.length]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightboxIndex(null);
+      if (event.key === "ArrowLeft") stepLightbox(-1);
+      if (event.key === "ArrowRight") stepLightbox(1);
+      if (["Escape", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [lightboxIndex, stepLightbox]);
+
   return (
-    <section className="project-view" role="dialog" aria-modal="true">
+    <section className={`project-view ${lightboxIndex !== null ? "is-lightbox-open" : ""}`} role="dialog" aria-modal="true">
       <button className="project-back" onClick={onClose}>← {language === "en" ? "return to the world" : "вернуться в мир"}</button>
       <header className="project-title"><p>{String(project.number).padStart(2, "0")} / {project.categories.map((id) => categoryLabel(id, language)).join(" · ")}</p><h2>{project.title[language]}</h2><span>{project.description[language]}</span></header>
-      <div className="project-gallery">{project.images.map((image, index) => {
-        const ratio = image.width / image.height;
-        const size = ratio >= 1.72 ? "gallery-wide" : ratio >= 1.08 ? "gallery-landscape" : ratio <= .7 ? "gallery-portrait" : "gallery-square";
-        return <figure className={size} key={image.src} style={{ aspectRatio: `${image.width} / ${image.height}` }}><ProjectMedia image={image} alt={`${project.title[language]} — ${index + 1}`} eager={index < 2} /></figure>;
-      })}</div>
-      {project.sourceUrl && <a className="source-link" href={project.sourceUrl} target="_blank" rel="noreferrer">{language === "en" ? "View original project ↗" : "Посмотреть исходный проект ↗"}</a>}
+      <div className="project-gallery">{galleryRows.map((row, rowIndex) => (
+        <div className={`gallery-row ${row.panoramic ? "is-panoramic" : ""}`} key={`${rowIndex}-${row.items[0].image.src}`}>
+          {row.items.map(({ image, index }) => (
+            <figure key={image.src} style={{ aspectRatio: `${image.width} / ${image.height}`, flexGrow: image.width / image.height }}>
+              <button className="gallery-open" onClick={() => setLightboxIndex(index)} aria-label={`${language === "en" ? "Open image" : "Открыть изображение"} ${index + 1} / ${project.images.length}`}>
+                <ProjectMedia image={image} alt={`${project.title[language]} — ${index + 1}`} eager={index < 2} />
+                <span aria-hidden="true">↗</span>
+              </button>
+            </figure>
+          ))}
+        </div>
+      ))}</div>
+      {(project.liveUrl || project.sourceUrl) && <div className="project-links">
+        {project.liveUrl && <a className="source-link" href={project.liveUrl} target="_blank" rel="noreferrer">{language === "en" ? "Open live website ↗" : "Открыть сайт ↗"}</a>}
+        {project.sourceUrl && <a className="source-link" href={project.sourceUrl} target="_blank" rel="noreferrer">{language === "en" ? "View original project ↗" : "Посмотреть исходный проект ↗"}</a>}
+      </div>}
+      {lightboxIndex !== null && <div className="project-lightbox" role="dialog" aria-modal="true" aria-label={language === "en" ? "Project image viewer" : "Просмотр изображений проекта"} onPointerDown={(event) => { if (event.target === event.currentTarget) setLightboxIndex(null); }}>
+        <button className="lightbox-close" onClick={() => setLightboxIndex(null)} aria-label={language === "en" ? "Close image viewer" : "Закрыть просмотр"}>{language === "en" ? "close ×" : "закрыть ×"}</button>
+        <button className="lightbox-arrow is-previous" onClick={() => stepLightbox(-1)} aria-label={language === "en" ? "Previous image" : "Предыдущее изображение"}>←</button>
+        <figure className="lightbox-media">
+          <ProjectMedia image={project.images[lightboxIndex]} alt={`${project.title[language]} — ${lightboxIndex + 1}`} eager />
+        </figure>
+        <button className="lightbox-arrow is-next" onClick={() => stepLightbox(1)} aria-label={language === "en" ? "Next image" : "Следующее изображение"}>→</button>
+        <span className="lightbox-counter">{String(lightboxIndex + 1).padStart(2, "0")} / {String(project.images.length).padStart(2, "0")}</span>
+      </div>}
     </section>
   );
 }
