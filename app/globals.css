@@ -130,7 +130,7 @@ button:focus-visible, a:focus-visible { outline: 1px solid var(--ink); outline-o
   pointer-events: none;
 }
 .intro p { margin: 0 0 -18px -220px; font-family: var(--pixel); font-size: 25px; line-height: 1; transform: translateX(132px); }
-.lang-en .intro > p:first-child { transform: translateX(-10px); }
+.lang-en .intro > p:first-child { transform: translateX(-370px); }
 .intro h1 { position: relative; margin: 0; font-family: var(--serif); font-size: 150px; font-weight: 400; line-height: .9; letter-spacing: -.045em; }
 .intro h1::before, .intro-line::before { content: ""; position: absolute; z-index: -1; background: var(--lime); }
 .intro h1::before { left: -18px; right: 46%; top: 45%; bottom: 5%; }
