@@ -6,7 +6,6 @@ import categoryData from "./data/categories.json";
 
 const WORLD_WIDTH = 3600;
 const HORIZON = 1060;
-const SKY_BAND = 1400;
 const OCEAN_BAND = 1900;
 const START = { x: 1800, y: 760 };
 const horizontalTiles = [-1, 0, 1];
@@ -338,8 +337,6 @@ export default function Home() {
   const normalizedX = wrap(camera.x);
   const baseOceanRow = Math.max(0, Math.floor((camera.y - HORIZON) / OCEAN_BAND));
   const oceanRows = Array.from({ length: 3 }, (_, index) => Math.max(0, baseOceanRow - 1 + index)).filter((row, index, all) => all.indexOf(row) === index);
-  const baseSkyRow = Math.max(0, Math.floor((HORIZON - camera.y) / SKY_BAND));
-  const skyRows = Array.from({ length: 3 }, (_, index) => Math.max(0, baseSkyRow - 1 + index)).filter((row, index, all) => all.indexOf(row) === index);
 
   const nearest = useMemo(() => projects.map((project) => {
     const dx = xDelta(camera.x, project.x);
@@ -410,7 +407,6 @@ export default function Home() {
             <WorldTile
               key={tile}
               left={tile * WORLD_WIDTH}
-              skyRows={skyRows}
               oceanRows={oceanRows}
               language={language}
               onHover={setHovered}
@@ -433,9 +429,8 @@ export default function Home() {
   );
 }
 
-function WorldTile({ left, skyRows, oceanRows, language, onHover, onOpen }: {
+function WorldTile({ left, oceanRows, language, onHover, onOpen }: {
   left: number;
-  skyRows: number[];
   oceanRows: number[];
   language: Language;
   onHover: (project: Project | null) => void;
@@ -443,9 +438,10 @@ function WorldTile({ left, skyRows, oceanRows, language, onHover, onOpen }: {
 }) {
   return (
     <section className="world-tile" style={{ width: WORLD_WIDTH, transform: `translate3d(${left}px, 0, 0)` }}>
-      {skyRows.map((row) => <SkyBand key={row} row={row} />)}
+      <div className="sky-plane" />
       {oceanRows.map((row) => <OceanBand key={row} row={row} />)}
       <Horizon />
+      {skyArt.map((item, index) => <Art key={`sky-${index}`} item={item} index={index} />)}
       {surfaceArt.map((item, index) => <Art key={`surface-${index}`} item={item} index={index} />)}
 
       <article className="intro">
@@ -470,20 +466,6 @@ function Horizon() {
     { left: 1465, width: 930 }, { left: 2585, width: 160 }, { left: 3090, width: 300 },
   ];
   return <div className="horizon" aria-hidden="true">{segments.map((segment, index) => <img key={index} src="/art/horizon.svg" alt="" style={segment} />)}</div>;
-}
-
-function SkyBand({ row }: { row: number }) {
-  const top = HORIZON - (row + 1) * SKY_BAND;
-  const baseTop = HORIZON - SKY_BAND;
-  const verticalShift = (row % 3) * 170;
-  return (
-    <div className="sky-band" style={{ top, height: SKY_BAND + 2 }}>
-      {skyArt.map((item, index) => {
-        const localY = ((item.y - baseTop + verticalShift) % SKY_BAND + SKY_BAND) % SKY_BAND;
-        return <Art key={`${row}-${index}`} item={{ ...item, y: localY }} index={index} />;
-      })}
-    </div>
-  );
 }
 
 function OceanBand({ row }: { row: number }) {
