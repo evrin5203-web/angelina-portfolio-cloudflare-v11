@@ -6,6 +6,7 @@ import categoryData from "./data/categories.json";
 
 const WORLD_WIDTH = 3600;
 const HORIZON = 1060;
+const SKY_BAND = 1400;
 const OCEAN_BAND = 1900;
 const START = { x: 1800, y: 760 };
 const horizontalTiles = [-1, 0, 1];
@@ -327,7 +328,7 @@ export default function Home() {
       const amount = event.shiftKey ? 250 : 86;
       if (event.key === "ArrowLeft") targetRef.current.x -= amount;
       if (event.key === "ArrowRight") targetRef.current.x += amount;
-      if (event.key === "ArrowUp") targetRef.current.y = Math.max(280, targetRef.current.y - amount);
+      if (event.key === "ArrowUp") targetRef.current.y -= amount;
       if (event.key === "ArrowDown") targetRef.current.y += amount;
     };
     window.addEventListener("keydown", onKey);
@@ -337,6 +338,8 @@ export default function Home() {
   const normalizedX = wrap(camera.x);
   const baseOceanRow = Math.max(0, Math.floor((camera.y - HORIZON) / OCEAN_BAND));
   const oceanRows = Array.from({ length: 3 }, (_, index) => Math.max(0, baseOceanRow - 1 + index)).filter((row, index, all) => all.indexOf(row) === index);
+  const baseSkyRow = Math.max(0, Math.floor((HORIZON - camera.y) / SKY_BAND));
+  const skyRows = Array.from({ length: 3 }, (_, index) => Math.max(0, baseSkyRow - 1 + index)).filter((row, index, all) => all.indexOf(row) === index);
 
   const nearest = useMemo(() => projects.map((project) => {
     const dx = xDelta(camera.x, project.x);
@@ -363,7 +366,7 @@ export default function Home() {
     if (!dragging) return;
     targetRef.current = {
       x: dragRef.current.cameraX - (event.clientX - dragRef.current.x),
-      y: Math.max(280, dragRef.current.cameraY - (event.clientY - dragRef.current.y)),
+      y: dragRef.current.cameraY - (event.clientY - dragRef.current.y),
     };
   };
   const endDrag = (event: PointerEvent<HTMLDivElement>) => {
@@ -375,7 +378,7 @@ export default function Home() {
     if (active || panel) return;
     targetRef.current = {
       x: targetRef.current.x + event.deltaX + (Math.abs(event.deltaX) < 2 ? event.deltaY * 0.54 : 0),
-      y: Math.max(280, targetRef.current.y + (Math.abs(event.deltaX) < 2 ? event.deltaY * 0.46 : event.deltaY)),
+      y: targetRef.current.y + (Math.abs(event.deltaX) < 2 ? event.deltaY * 0.46 : event.deltaY),
     };
   };
   const arrowAngle = nearest ? Math.atan2(nearest.dy, nearest.dx) * 180 / Math.PI + 42 : 0;
@@ -407,6 +410,7 @@ export default function Home() {
             <WorldTile
               key={tile}
               left={tile * WORLD_WIDTH}
+              skyRows={skyRows}
               oceanRows={oceanRows}
               language={language}
               onHover={setHovered}
@@ -429,8 +433,9 @@ export default function Home() {
   );
 }
 
-function WorldTile({ left, oceanRows, language, onHover, onOpen }: {
+function WorldTile({ left, skyRows, oceanRows, language, onHover, onOpen }: {
   left: number;
+  skyRows: number[];
   oceanRows: number[];
   language: Language;
   onHover: (project: Project | null) => void;
@@ -438,10 +443,9 @@ function WorldTile({ left, oceanRows, language, onHover, onOpen }: {
 }) {
   return (
     <section className="world-tile" style={{ width: WORLD_WIDTH, transform: `translate3d(${left}px, 0, 0)` }}>
-      <div className="sky-plane" />
+      {skyRows.map((row) => <SkyBand key={row} row={row} />)}
       {oceanRows.map((row) => <OceanBand key={row} row={row} />)}
       <Horizon />
-      {skyArt.map((item, index) => <Art key={`sky-${index}`} item={item} index={index} />)}
       {surfaceArt.map((item, index) => <Art key={`surface-${index}`} item={item} index={index} />)}
 
       <article className="intro">
@@ -468,6 +472,20 @@ function Horizon() {
   return <div className="horizon" aria-hidden="true">{segments.map((segment, index) => <img key={index} src="/art/horizon.svg" alt="" style={segment} />)}</div>;
 }
 
+function SkyBand({ row }: { row: number }) {
+  const top = HORIZON - (row + 1) * SKY_BAND;
+  const baseTop = HORIZON - SKY_BAND;
+  const verticalShift = (row % 3) * 170;
+  return (
+    <div className="sky-band" style={{ top, height: SKY_BAND + 2 }}>
+      {skyArt.map((item, index) => {
+        const localY = ((item.y - baseTop + verticalShift) % SKY_BAND + SKY_BAND) % SKY_BAND;
+        return <Art key={`${row}-${index}`} item={{ ...item, y: localY }} index={index} />;
+      })}
+    </div>
+  );
+}
+
 function OceanBand({ row }: { row: number }) {
   const shift = (row % 3) * 260;
   return (
@@ -479,8 +497,8 @@ function OceanBand({ row }: { row: number }) {
 }
 
 function Art({ item, index }: { item: ArtItem; index: number }) {
-  const speed = item.motion === "cloud" ? `${18 + (index % 6) * 3.2}s` : `${4.2 + (index % 6) * 1.05}s`;
-  const drift = item.motion === "cloud" ? `${80 + (index % 5) * 22}px` : `${18 + (index % 5) * 9}px`;
+  const speed = item.motion === "cloud" ? `${118 + (index % 6) * 14}s` : `${4.2 + (index % 6) * 1.05}s`;
+  const drift = item.motion === "cloud" ? `${WORLD_WIDTH}px` : `${18 + (index % 5) * 9}px`;
   return (
     <span className={`art-cluster motion-${item.motion}`} data-motion={item.motion} style={{ left: item.x, top: item.y, width: item.width, "--delay": `${-(index % 7) * .9}s`, "--speed": speed, "--drift": drift, "--lift": `${3 + (index % 4) * 3}px`, "--plate": item.plate ?? "transparent" } as CSSProperties} aria-hidden="true">
       {item.plate && <span className={`pixel-plate plate-${index % 3}`}><i /><i /></span>}
@@ -578,10 +596,11 @@ function SelectedShowcase({ projects, language, onOpen }: { projects: Project[];
 
 function ProjectView({ project, language, onClose }: { project: Project; language: Language; onClose: () => void }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const galleryRows = useMemo(() => buildGalleryRows(project.images), [project.images]);
+  const galleryImages = useMemo(() => project.images.filter((image) => image.src !== project.cover), [project.cover, project.images]);
+  const galleryRows = useMemo(() => buildGalleryRows(galleryImages), [galleryImages]);
   const stepLightbox = useCallback((direction: number) => {
-    setLightboxIndex((current) => current === null ? null : (current + direction + project.images.length) % project.images.length);
-  }, [project.images.length]);
+    setLightboxIndex((current) => current === null ? null : (current + direction + galleryImages.length) % galleryImages.length);
+  }, [galleryImages.length]);
 
   useEffect(() => {
     if (lightboxIndex === null) return;
@@ -605,10 +624,9 @@ function ProjectView({ project, language, onClose }: { project: Project; languag
       <div className="project-gallery">{galleryRows.map((row, rowIndex) => (
         <div className={`gallery-row ${row.panoramic ? "is-panoramic" : ""}`} key={`${rowIndex}-${row.items[0].image.src}`}>
           {row.items.map(({ image, index }) => (
-            <figure key={image.src} style={{ aspectRatio: `${image.width} / ${image.height}`, flexGrow: image.width / image.height }}>
-              <button className="gallery-open" onClick={() => setLightboxIndex(index)} aria-label={`${language === "en" ? "Open image" : "Открыть изображение"} ${index + 1} / ${project.images.length}`}>
+            <figure key={image.src} style={{ aspectRatio: `${image.width} / ${image.height}`, flex: `${image.width / image.height} 1 0` }}>
+              <button className="gallery-open" onClick={() => setLightboxIndex(index)} aria-label={`${language === "en" ? "Open image" : "Открыть изображение"} ${index + 1} / ${galleryImages.length}`}>
                 <ProjectMedia image={image} alt={`${project.title[language]} — ${index + 1}`} eager={index < 2} />
-                <span aria-hidden="true">↗</span>
               </button>
             </figure>
           ))}
@@ -619,13 +637,13 @@ function ProjectView({ project, language, onClose }: { project: Project; languag
         {project.sourceUrl && <a className="source-link" href={project.sourceUrl} target="_blank" rel="noreferrer">{language === "en" ? "View original project ↗" : "Посмотреть исходный проект ↗"}</a>}
       </div>}
       {lightboxIndex !== null && <div className="project-lightbox" role="dialog" aria-modal="true" aria-label={language === "en" ? "Project image viewer" : "Просмотр изображений проекта"} onPointerDown={(event) => { if (event.target === event.currentTarget) setLightboxIndex(null); }}>
-        <button className="lightbox-close" onClick={() => setLightboxIndex(null)} aria-label={language === "en" ? "Close image viewer" : "Закрыть просмотр"}>{language === "en" ? "close ×" : "закрыть ×"}</button>
+        <button type="button" className="lightbox-close" onPointerDown={(event) => { event.stopPropagation(); setLightboxIndex(null); }} aria-label={language === "en" ? "Close image viewer" : "Закрыть просмотр"}>{language === "en" ? "close ×" : "закрыть ×"}</button>
         <button className="lightbox-arrow is-previous" onClick={() => stepLightbox(-1)} aria-label={language === "en" ? "Previous image" : "Предыдущее изображение"}>←</button>
         <figure className="lightbox-media">
-          <ProjectMedia image={project.images[lightboxIndex]} alt={`${project.title[language]} — ${lightboxIndex + 1}`} eager />
+          <ProjectMedia image={galleryImages[lightboxIndex]} alt={`${project.title[language]} — ${lightboxIndex + 1}`} eager />
         </figure>
         <button className="lightbox-arrow is-next" onClick={() => stepLightbox(1)} aria-label={language === "en" ? "Next image" : "Следующее изображение"}>→</button>
-        <span className="lightbox-counter">{String(lightboxIndex + 1).padStart(2, "0")} / {String(project.images.length).padStart(2, "0")}</span>
+        <span className="lightbox-counter">{String(lightboxIndex + 1).padStart(2, "0")} / {String(galleryImages.length).padStart(2, "0")}</span>
       </div>}
     </section>
   );

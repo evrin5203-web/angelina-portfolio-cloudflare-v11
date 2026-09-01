@@ -11,7 +11,11 @@ export const metadata: Metadata = {
   title: "Angelina — Somewhere Around Here",
   description: "The endless portfolio world of designer and art director Angelina Bolgova.",
   other: { "codex-preview": "development" },
-  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  icons: {
+    icon: [{ url: "/favicon.png?v=angelina-2", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=angelina-2",
+    apple: "/favicon.png?v=angelina-2",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
