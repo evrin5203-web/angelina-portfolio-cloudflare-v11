@@ -445,8 +445,13 @@ function WorldTile({ left, oceanRows, language, onHover, onOpen }: {
       {surfaceArt.map((item, index) => <Art key={`surface-${index}`} item={item} index={index} />)}
 
       <article className="intro">
-        <p>{language === "en" ? "Hello, I’m" : "Привет, я"}</p>
-        <h1><span>{language === "en" ? "Angelina." : "Ангелина."}</span></h1>
+        <h1>
+          <span className="intro-name-first">
+            {language === "en" ? "A" : "А"}
+            <span className="intro-hello">{language === "en" ? "Hello, I’m" : "Привет, я"}</span>
+          </span>
+          <span>{language === "en" ? "ngelina." : "нгелина."}</span>
+        </h1>
         <p className="intro-line"><span>{language === "en" ? "And I’m somewhere here." : "И я где-то здесь."}</span></p>
         <strong>{language === "en" ? "Designer & art director · keep moving →" : "Дизайнер и арт-директор · Продолжай двигаться →"}</strong>
       </article>
@@ -479,8 +484,8 @@ function OceanBand({ row }: { row: number }) {
 }
 
 function Art({ item, index }: { item: ArtItem; index: number }) {
-  const speed = item.motion === "cloud" ? `${118 + (index % 6) * 14}s` : `${4.2 + (index % 6) * 1.05}s`;
-  const drift = item.motion === "cloud" ? `${WORLD_WIDTH}px` : `${18 + (index % 5) * 9}px`;
+  const speed = item.motion === "cloud" ? `${22 + (index % 6) * 3.5}s` : `${4.2 + (index % 6) * 1.05}s`;
+  const drift = item.motion === "cloud" ? `${22 + (index % 5) * 7}px` : `${18 + (index % 5) * 9}px`;
   return (
     <span className={`art-cluster motion-${item.motion}`} data-motion={item.motion} style={{ left: item.x, top: item.y, width: item.width, "--delay": `${-(index % 7) * .9}s`, "--speed": speed, "--drift": drift, "--lift": `${3 + (index % 4) * 3}px`, "--plate": item.plate ?? "transparent" } as CSSProperties} aria-hidden="true">
       {item.plate && <span className={`pixel-plate plate-${index % 3}`}><i /><i /></span>}
@@ -618,13 +623,11 @@ function ProjectView({ project, language, onClose }: { project: Project; languag
         {project.liveUrl && <a className="source-link" href={project.liveUrl} target="_blank" rel="noreferrer">{language === "en" ? "Open live website ↗" : "Открыть сайт ↗"}</a>}
         {project.sourceUrl && <a className="source-link" href={project.sourceUrl} target="_blank" rel="noreferrer">{language === "en" ? "View original project ↗" : "Посмотреть исходный проект ↗"}</a>}
       </div>}
-      {lightboxIndex !== null && <div className="project-lightbox" role="dialog" aria-modal="true" aria-label={language === "en" ? "Project image viewer" : "Просмотр изображений проекта"} onPointerDown={(event) => { if (event.target === event.currentTarget) setLightboxIndex(null); }}>
-        <button type="button" className="lightbox-close" onPointerDown={(event) => { event.stopPropagation(); setLightboxIndex(null); }} aria-label={language === "en" ? "Close image viewer" : "Закрыть просмотр"}>{language === "en" ? "close ×" : "закрыть ×"}</button>
-        <button className="lightbox-arrow is-previous" onClick={() => stepLightbox(-1)} aria-label={language === "en" ? "Previous image" : "Предыдущее изображение"}>←</button>
-        <figure className="lightbox-media">
+      {lightboxIndex !== null && <div className="project-lightbox" role="dialog" aria-modal="true" aria-label={language === "en" ? "Project image viewer" : "Просмотр изображений проекта"} onClick={(event) => { if (event.target === event.currentTarget) setLightboxIndex(null); }}>
+        <button type="button" className="lightbox-close" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setLightboxIndex(null); }} aria-label={language === "en" ? "Close image viewer" : "Закрыть просмотр"}>{language === "en" ? "close ×" : "закрыть ×"}</button>
+        <figure className="lightbox-media" onClick={(event) => event.stopPropagation()}>
           <ProjectMedia image={galleryImages[lightboxIndex]} alt={`${project.title[language]} — ${lightboxIndex + 1}`} eager />
         </figure>
-        <button className="lightbox-arrow is-next" onClick={() => stepLightbox(1)} aria-label={language === "en" ? "Next image" : "Следующее изображение"}>→</button>
         <span className="lightbox-counter">{String(lightboxIndex + 1).padStart(2, "0")} / {String(galleryImages.length).padStart(2, "0")}</span>
       </div>}
     </section>
