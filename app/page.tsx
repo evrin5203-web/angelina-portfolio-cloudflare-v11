@@ -132,8 +132,13 @@ function categoryLabel(id: string, language: Language) {
   return categories.find((category) => category.id === id)?.[language] ?? id;
 }
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+function assetPath(src: string) {
+  return src.startsWith("/") ? `${basePath}${src}` : src;
+}
+
 function thumbnailFor(src: string) {
-  return src.replace(/^\/portfolio\//, "/portfolio-thumbs/").replace(/\.[^.]+$/, ".webp");
+  return assetPath(src.replace(/^\/portfolio\//, "/portfolio-thumbs/").replace(/\.[^.]+$/, ".webp"));
 }
 
 type GalleryItem = { image: ProjectImage; index: number };
@@ -188,9 +193,9 @@ function ProjectMedia({ image, alt, eager = false }: { image: ProjectImage; alt:
   }, [image.animated, videoReady]);
 
   if (image.animated && image.src.endsWith(".mp4")) {
-    return <video ref={videoRef} src={videoReady ? image.src : undefined} poster={thumbnailFor(image.src)} aria-label={alt} autoPlay loop muted playsInline preload={videoReady ? "metadata" : "none"} />;
+    return <video ref={videoRef} src={videoReady ? assetPath(image.src) : undefined} poster={thumbnailFor(image.src)} aria-label={alt} autoPlay loop muted playsInline preload={videoReady ? "metadata" : "none"} />;
   }
-  return <img src={image.src} width={image.width} height={image.height} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" />;
+  return <img src={assetPath(image.src)} width={image.width} height={image.height} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" />;
 }
 
 export default function Home() {
@@ -382,7 +387,7 @@ export default function Home() {
 
   return (
     <main className={`site-shell lang-${language}`}>
-      <div ref={cursorRef} className="custom-cursor" aria-hidden="true"><img src="/art/arrow.svg" alt="" /></div>
+      <div ref={cursorRef} className="custom-cursor" aria-hidden="true"><img src={assetPath("/art/arrow.svg")} alt="" /></div>
       <div ref={previewRef} className={`hover-preview ${hovered ? "is-visible" : ""}`} aria-hidden="true">
         {hovered && <Cover project={hovered} language={language} />}
       </div>
@@ -418,7 +423,7 @@ export default function Home() {
 
       {nearest && <button className="compass" onClick={() => moveTo(nearest.project)} aria-label={`Move to ${nearest.project.title[language]}`}>
         <span><small>{language === "en" ? "NEAREST PROJECT" : "БЛИЖАЙШИЙ ПРОЕКТ"}</small><strong>{nearest.project.title[language]}</strong></span>
-        <img src="/art/arrow.svg" alt="" style={{ transform: `rotate(${arrowAngle}deg)` }} />
+        <img src={assetPath("/art/arrow.svg")} alt="" style={{ transform: `rotate(${arrowAngle}deg)` }} />
       </button>}
       <div className="coordinates" aria-hidden="true">X {Math.round(normalizedX).toString().padStart(4, "0")} · DEPTH {Math.max(0, Math.round(camera.y - HORIZON)).toString().padStart(4, "0")}</div>
       <div className="movement-hint" aria-hidden="true"><span>DRAG · SCROLL · ARROWS</span><i>KEEP MOVING →</i></div>
@@ -470,7 +475,7 @@ function Horizon() {
     { left: 0, width: 70 }, { left: 430, width: 120 }, { left: 800, width: 200 },
     { left: 1465, width: 930 }, { left: 2585, width: 160 }, { left: 3090, width: 300 },
   ];
-  return <div className="horizon" aria-hidden="true">{segments.map((segment, index) => <img key={index} src="/art/horizon.svg" alt="" style={segment} />)}</div>;
+  return <div className="horizon" aria-hidden="true">{segments.map((segment, index) => <img key={index} src={assetPath("/art/horizon.svg")} alt="" style={segment} />)}</div>;
 }
 
 function OceanBand({ row }: { row: number }) {
@@ -478,7 +483,7 @@ function OceanBand({ row }: { row: number }) {
   return (
     <div className="ocean-band" style={{ top: HORIZON + row * OCEAN_BAND, height: OCEAN_BAND + 2 }}>
       {oceanArt.map((item, index) => <Art key={`${row}-${index}`} item={{ ...item, x: wrap(item.x + shift) }} index={index + row * 5} />)}
-      {[0, 1, 2].map((current) => <span key={current} className="ocean-current" data-motion="wave" style={{ left: `${12 + ((row * 23 + current * 31) % 72)}%`, top: `${18 + ((row * 17 + current * 29) % 65)}%`, width: `${78 + ((row + current * 2) % 5) * 24}px`, "--current-speed": `${4.2 + ((row + current) % 5) * 1.15}s`, "--current-distance": `${22 + ((row * 3 + current) % 5) * 10}px` } as CSSProperties} aria-hidden="true"><img src={`/art/water-${(row + current) % 3 + 1}.svg`} alt="" /></span>)}
+      {[0, 1, 2].map((current) => <span key={current} className="ocean-current" data-motion="wave" style={{ left: `${12 + ((row * 23 + current * 31) % 72)}%`, top: `${18 + ((row * 17 + current * 29) % 65)}%`, width: `${78 + ((row + current * 2) % 5) * 24}px`, "--current-speed": `${4.2 + ((row + current) % 5) * 1.15}s`, "--current-distance": `${22 + ((row * 3 + current) % 5) * 10}px` } as CSSProperties} aria-hidden="true"><img src={assetPath(`/art/water-${(row + current) % 3 + 1}.svg`)} alt="" /></span>)}
     </div>
   );
 }
@@ -489,7 +494,7 @@ function Art({ item, index }: { item: ArtItem; index: number }) {
   return (
     <span className={`art-cluster motion-${item.motion}`} data-motion={item.motion} style={{ left: item.x, top: item.y, width: item.width, "--delay": `${-(index % 7) * .9}s`, "--speed": speed, "--drift": drift, "--lift": `${3 + (index % 4) * 3}px`, "--plate": item.plate ?? "transparent" } as CSSProperties} aria-hidden="true">
       {item.plate && <span className={`pixel-plate plate-${index % 3}`}><i /><i /></span>}
-      <img src={item.src} alt="" draggable={false} />
+      <img src={assetPath(item.src)} alt="" draggable={false} />
     </span>
   );
 }
